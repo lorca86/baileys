@@ -1,4 +1,4 @@
-import fs from 'fs'; // <-- 1. IMPORTACIÓN AÑADIDA
+import fs from 'fs';
 import "dotenv/config"
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
 import { MemoryDB } from '@builderbot/bot'
@@ -99,7 +99,7 @@ const main = async () => {
 
     /**
      * Base de datos en memoria para el bot
-     * @type {MemoryDB}
+  T    * @type {MemoryDB}
      */
     const adapterDB = new MemoryDB();
 
@@ -107,7 +107,9 @@ const main = async () => {
      * Configuración y creación del bot
      * @type {import('@builderbot/bot').Bot<BaileysProvider, MemoryDB>}
      */
-    const { httpServer } = await createBot({
+
+    // --- 👇 1. PRIMER CAMBIO: Añadimos "app" aquí 👇 ---
+    const { httpServer, app } = await createBot({
         flow: adapterFlow,
         provider: adapterProvider,
         database: adapterDB,
@@ -115,9 +117,8 @@ const main = async () => {
 
     httpInject(adapterProvider.server);
 
-    // --- 👇 2. CÓDIGO AÑADIDO PARA EVITAR EL CRASH 👇 ---
-    // Esta ruta anula la ruta por defecto de httpInject para evitar el crash
-    httpServer.get('/', (req, res) => {
+    // --- 👇 2. SEGUNDO CAMBIO: Usamos "app.get" aquí 👇 ---
+    app.get('/', (req, res) => {
         // Esta es la ruta exacta que te dio el error en los logs
         // En Railway, /app/ es el directorio raíz de tu proyecto
         const qrPath = '/app/bot.qr.png'; 
@@ -129,11 +130,11 @@ const main = async () => {
             fs.createReadStream(qrPath).pipe(res);
         } else {
             // Si NO existe, evitamos el crash y enviamos un mensaje
-            res.statusCode = 404; // <-- 3. SINTAXIS CORREGIDA
-            res.end('Generando QR... por favor, refresca la página en 10 segundos.'); // <-- 3. SINTAXIS CORREGIDA
+            // (Usamos la sintaxis de Express, que es la correcta para "app")
+            res.status(404).send('Generando QR... por favor, refresca la página en 10 segundos.');
         }
     });
-    // --- 👆 FIN DEL CÓDIGO AÑADIDO --- 👆
+    // --- 👆 FIN DEL CÓDIGO CORREGIDO --- 👆
 
     httpServer(+PORT);
 };
