@@ -108,19 +108,16 @@ const main = async () => {
      * @type {import('@builderbot/bot').Bot<BaileysProvider, MemoryDB>}
      */
 
-    // --- 👇 1. PRIMER CAMBIO: Añadimos "app" aquí 👇 ---
-    const { httpServer, app } = await createBot({
+    // --- 👇 1. PRIMER CAMBIO: Dejamos esto como estaba (SIN "app") 👇 ---
+    const { httpServer } = await createBot({
         flow: adapterFlow,
         provider: adapterProvider,
         database: adapterDB,
     });
 
-    httpInject(adapterProvider.server);
-
-    // --- 👇 2. SEGUNDO CAMBIO: Usamos "app.get" aquí 👇 ---
-    app.get('/', (req, res) => {
+    // --- 👇 2. SEGUNDO CAMBIO: Usamos "adapterProvider.server.get" y lo ponemos ANTES de "httpInject" 👇 ---
+    adapterProvider.server.get('/', (req, res) => {
         // Esta es la ruta exacta que te dio el error en los logs
-        // En Railway, /app/ es el directorio raíz de tu proyecto
         const qrPath = '/app/bot.qr.png'; 
 
         // Verificamos si el archivo YA existe
@@ -130,12 +127,12 @@ const main = async () => {
             fs.createReadStream(qrPath).pipe(res);
         } else {
             // Si NO existe, evitamos el crash y enviamos un mensaje
-            // (Usamos la sintaxis de Express, que es la correcta para "app")
             res.status(404).send('Generando QR... por favor, refresca la página en 10 segundos.');
         }
     });
     // --- 👆 FIN DEL CÓDIGO CORREGIDO --- 👆
 
+    httpInject(adapterProvider.server); // Esta línea AHORA va después de tu ruta
     httpServer(+PORT);
 };
 
