@@ -1,6 +1,6 @@
-import "dotenv/config"; // ¡Importante! Poner esto al inicio
 import fs from 'fs';
 import path from 'path';
+// "dotenv/config" HA SIDO ELIMINADO. ¡Esa era la causa del problema!
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
 import { MemoryDB } from '@builderbot/bot' 
 import { BaileysProvider } from '@builderbot/provider-baileys'
@@ -107,9 +107,9 @@ const main = async () => {
      * Base de datos
      */
     
-    // ¡Quitamos el fallback '?? ""'!
+    // Railway inyectará "process.env.MONGO_URL" aquí.
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL, // <-- Ahora sí leerá la variable
+        dbUri: process.env.MONGO_URL, 
         dbName: 'baileys_session'
     });
 
