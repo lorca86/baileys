@@ -106,8 +106,10 @@ const main = async () => {
      * Base de datos
      */
     
+    // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
+    // Añadimos un fallback de string vacío para forzar un error DIFERENTE.
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL, // <-- Railway inyectará esto
+        dbUri: process.env.MONGO_URL ?? '', // <-- ¡CAMBIO IMPORTANTE!
         dbName: 'baileys_session'
     });
 
