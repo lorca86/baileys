@@ -1,4 +1,4 @@
-// NO necesitamos "dotenv/config" aquí, Railway lo maneja
+import "dotenv/config"; // <--- LO VOLVEMOS A AÑADIR
 import fs from 'fs';
 import path from 'path';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
@@ -11,7 +11,7 @@ import { MongoAdapter } from '@builderbot/database-mongo';
 /** Puerto en el que se ejecutará el servidor */
 const PORT = process.env.PORT ?? 3008
 /** ID del asistente de OpenAI */
-const ASSISTANT_ID = process.env.ASSISTANT_ID ?? '' // Railway inyectará esta variable también
+const ASSISTANT_ID = process.env.ASSISTANT_ID ?? ''
 const userQueues = new Map();
 const userLocks = new Map(); 
 
@@ -106,10 +106,14 @@ const main = async () => {
     /**
      * Base de datos
      */
+
+    console.log('---[INICIO DE DEPURACIÓN]---');
+    console.log('Intentando leer la variable MONGO_URL...');
+    console.log('Valor recibido:', process.env.MONGO_URL);
+    console.log('---[FIN DE DEPURACIÓN]---');
     
-    // Ya no necesitamos los console.log, la variable funcionará
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL, // <-- Railway inyectará esto
+        dbUri: process.env.MONGO_URL, 
         dbName: 'baileys_session'
     });
 
