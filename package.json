@@ -2,13 +2,12 @@
   "name": "base-bailey-json",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/app.js",
+  "main": "src/app.ts",
   "type": "module",
   "scripts": {
-    "start": "node ./dist/app.js",
+    "start": "npx tsx ./src/app.ts",
     "lint": "eslint . --no-ignore",
-    "dev": "npm run lint && nodemon ./src/app.ts",
-    "build": "npx rollup -c"
+    "dev": "npm run lint && nodemon ./src/app.ts"
   },
   "keywords": [],
   "dependencies": {
