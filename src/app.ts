@@ -1,4 +1,3 @@
-import "dotenv/config"; // <--- LO VOLVEMOS A AÑADIR
 import fs from 'fs';
 import path from 'path';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
@@ -11,7 +10,7 @@ import { MongoAdapter } from '@builderbot/database-mongo';
 /** Puerto en el que se ejecutará el servidor */
 const PORT = process.env.PORT ?? 3008
 /** ID del asistente de OpenAI */
-const ASSISTANT_ID = process.env.ASSISTANT_ID ?? ''
+const ASSISTANT_ID = process.env.ASSISTANT_ID ?? '' 
 const userQueues = new Map();
 const userLocks = new Map(); 
 
@@ -106,14 +105,9 @@ const main = async () => {
     /**
      * Base de datos
      */
-
-    console.log('---[INICIO DE DEPURACIÓN]---');
-    console.log('Intentando leer la variable MONGO_URL...');
-    console.log('Valor recibido:', process.env.MONGO_URL);
-    console.log('---[FIN DE DEPURACIÓN]---');
     
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL, 
+        dbUri: process.env.MONGO_URL, // <-- Railway inyectará esto
         dbName: 'baileys_session'
     });
 
