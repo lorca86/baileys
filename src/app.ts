@@ -8,12 +8,8 @@ const PORT = process.env.PORT ?? 3008;
 const userQueues = new Map();
 const userLocks = new Map();
 
-/**
- * Procesa un mensaje del usuario mediante OpenAI (si lo tienes configurado)
- */
 const processUserMessage = async (ctx, { flowDynamic, state, provider }) => {
-  const REAL_ASSISTANT_ID = ''; // Puedes poner aquí el ID real si usas OpenAI
-
+  const REAL_ASSISTANT_ID = '';
   try {
     await typing(ctx, provider);
     const response = await toAsk(REAL_ASSISTANT_ID, ctx.body, state);
@@ -28,9 +24,6 @@ const processUserMessage = async (ctx, { flowDynamic, state, provider }) => {
   }
 };
 
-/**
- * Manejo de cola por usuario (para procesar mensajes en orden)
- */
 const handleQueue = async (userId) => {
   const queue = userQueues.get(userId);
   if (userLocks.get(userId)) return;
@@ -51,9 +44,6 @@ const handleQueue = async (userId) => {
   userQueues.delete(userId);
 };
 
-/**
- * Flujo principal (welcome)
- */
 const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
   .addAction(async (ctx, { flowDynamic, state, provider }) => {
     const userId = ctx.from;
@@ -65,22 +55,18 @@ const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
     }
   });
 
-/**
- * Main principal
- */
 const main = async () => {
   const adapterFlow = createFlow([welcomeFlow]);
 
-  // ✅ Aquí eliminamos el QR_PATH, y usamos printQR para mostrarlo por consola
+  // 🚀 Importantísimo: usamos printQR, ya no guardamos el QR en disco
   const adapterProvider = createProvider(BaileysProvider, {
     groupsIgnore: true,
     readStatus: false,
     qr: {
-      printQR: true, // <--- importante: imprime QR en logs
+      printQR: true, // imprime el QR en los logs de Railway
     },
   });
 
-  // ✅ Tu conexión Mongo existente
   const HARDCODED_MONGO_URL =
     'mongodb+srv://baileys:L3bana!!09@cluster0.od58v3e.mongodb.net/?appName=Cluster0';
 
@@ -97,9 +83,9 @@ const main = async () => {
 
   httpInject(adapterProvider.server);
 
-  // ✅ Eliminamos la parte del fs.createReadStream (no se usa)
+  // Ya no intentamos leer ningún archivo QR
   adapterProvider.server.get('/', (_, res) => {
-    res.send('Bot Baileys funcionando. Escanea el QR en los logs la primera vez.');
+    res.send('Bot Baileys funcionando ✅. Escanea el QR en los logs.');
   });
 
   httpServer(+PORT);
