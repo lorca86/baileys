@@ -12,7 +12,7 @@
     "@builderbot/bot": "^1.2.9",
     "@builderbot/provider-baileys": "^1.2.9",
     "@builderbot-plugins/openai-assistants": "^0.0.2",
-    "@whiskeysockets/baileys": "latest",
+    "@whiskeysockets/baileys": "^6.7.0",
     "mongodb": "^6.10.0",
     "dotenv": "^16.4.5",
     "qrcode-terminal": "^0.12.0"
