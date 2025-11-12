@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS, MemoryDB } from '@builderbot/bot';
 import { BaileysProvider } from '@builderbot/provider-baileys';
 import { toAsk, httpInject } from '@builderbot-plugins/openai-assistants';
@@ -10,10 +8,12 @@ const PORT = process.env.PORT ?? 3008;
 const userQueues = new Map();
 const userLocks = new Map();
 
-const QR_PATH = process.env.QR_PATH || path.join(process.cwd(), 'bot.qr.png');
-
+/**
+ * Procesa un mensaje del usuario mediante OpenAI (si lo tienes configurado)
+ */
 const processUserMessage = async (ctx, { flowDynamic, state, provider }) => {
-  const REAL_ASSISTANT_ID = '';
+  const REAL_ASSISTANT_ID = ''; // Puedes poner aquí el ID real si usas OpenAI
+
   try {
     await typing(ctx, provider);
     const response = await toAsk(REAL_ASSISTANT_ID, ctx.body, state);
@@ -28,6 +28,9 @@ const processUserMessage = async (ctx, { flowDynamic, state, provider }) => {
   }
 };
 
+/**
+ * Manejo de cola por usuario (para procesar mensajes en orden)
+ */
 const handleQueue = async (userId) => {
   const queue = userQueues.get(userId);
   if (userLocks.get(userId)) return;
@@ -43,10 +46,14 @@ const handleQueue = async (userId) => {
       userLocks.set(userId, false);
     }
   }
+
   userLocks.delete(userId);
   userQueues.delete(userId);
 };
 
+/**
+ * Flujo principal (welcome)
+ */
 const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
   .addAction(async (ctx, { flowDynamic, state, provider }) => {
     const userId = ctx.from;
@@ -58,49 +65,41 @@ const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
     }
   });
 
+/**
+ * Main principal
+ */
 const main = async () => {
   const adapterFlow = createFlow([welcomeFlow]);
 
+  // ✅ Aquí eliminamos el QR_PATH, y usamos printQR para mostrarlo por consola
   const adapterProvider = createProvider(BaileysProvider, {
     groupsIgnore: true,
     readStatus: false,
-    // puedes usar printQR: true si no quieres guardar el archivo
     qr: {
-      path: QR_PATH,
-      printQR: true
-    }
+      printQR: true, // <--- importante: imprime QR en logs
+    },
   });
 
+  // ✅ Tu conexión Mongo existente
   const HARDCODED_MONGO_URL =
     'mongodb+srv://baileys:L3bana!!09@cluster0.od58v3e.mongodb.net/?appName=Cluster0';
 
   const adapterDB = new MongoAdapter({
     dbUri: HARDCODED_MONGO_URL,
-    dbName: 'baileys_session'
+    dbName: 'baileys_session',
   });
 
   const { httpServer } = await createBot({
     flow: adapterFlow,
     provider: adapterProvider,
-    database: adapterDB
+    database: adapterDB,
   });
 
   httpInject(adapterProvider.server);
 
-  adapterProvider.server.get('/', (req, res) => {
-    const qrFile = QR_PATH;
-    fs.stat(qrFile, (err, stats) => {
-      if (err || !stats.isFile()) {
-        res.status(404).send('Generando QR... refresca en unos segundos.');
-        return;
-      }
-      const stream = fs.createReadStream(qrFile);
-      stream.on('error', () => {
-        res.status(500).send('Error leyendo el QR.');
-      });
-      res.setHeader('Content-Type', 'image/png');
-      stream.pipe(res);
-    });
+  // ✅ Eliminamos la parte del fs.createReadStream (no se usa)
+  adapterProvider.server.get('/', (_, res) => {
+    res.send('Bot Baileys funcionando. Escanea el QR en los logs la primera vez.');
   });
 
   httpServer(+PORT);
