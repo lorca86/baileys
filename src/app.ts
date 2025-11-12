@@ -1,3 +1,4 @@
+// Forzando un redespliegue para leer las variables
 import fs from 'fs';
 import path from 'path';
 import "dotenv/config"
