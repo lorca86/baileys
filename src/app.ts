@@ -1,3 +1,4 @@
+import "dotenv/config"; // ¡Importante! Poner esto al inicio
 import fs from 'fs';
 import path from 'path';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
@@ -106,10 +107,9 @@ const main = async () => {
      * Base de datos
      */
     
-    // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-    // Añadimos un fallback de string vacío para forzar un error DIFERENTE.
+    // ¡Quitamos el fallback '?? ""'!
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL ?? '', // <-- ¡CAMBIO IMPORTANTE!
+        dbUri: process.env.MONGO_URL, // <-- Ahora sí leerá la variable
         dbName: 'baileys_session'
     });
 
