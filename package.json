@@ -1,38 +1,25 @@
 {
-  "name": "base-bailey-json",
+  "name": "baileys-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Bot de WhatsApp con Baileys y Builderbot, listo para Railway",
   "main": "src/app.ts",
   "type": "module",
   "scripts": {
     "start": "npx tsx ./src/app.ts",
-    "lint": "eslint . --no-ignore",
-    "dev": "npm run lint && nodemon ./src/app.ts"
+    "postinstall": "npm install -g tsx"
   },
-  "keywords": [],
   "dependencies": {
-    "@builderbot-plugins/openai-assistants": "^0.0.2",
     "@builderbot/bot": "1.2.9",
     "@builderbot/provider-baileys": "1.2.9",
-    "dotenv": "^16.4.5",
-    "@builderbot/database-mongo": "latest"
+    "@builderbot/database-mongo": "latest",
+    "@builderbot-plugins/openai-assistants": "^0.0.2",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@types/multer": "^1.4.11",
-    "@types/node": "^20.11.30",
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@typescript-eslint/parser": "^7.4.0",
-    "eslint": "^8.52.0",
-    "eslint-plugin-builderbot": "latest",
-    "nodemon": "^3.1.0",
-    "rollup": "^4.10.0",
-    "rollup-plugin-typescript2": "^0.36.0",
     "tsx": "^4.7.1",
     "typescript": "^5.4.3"
   },
-  "author": "",
-  "license": "ISC",
   "engines": {
-    "node": ">=20"
-  }
-}
+    "node": "20.x"
+  },
+  "license": "M
