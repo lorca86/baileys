@@ -1,22 +1,20 @@
-// Forzando un redespliegue para leer las variables
+import "dotenv/config"; // <-- PASO 3 DE PERPLEXITY: Mover al inicio
 import fs from 'fs';
 import path from 'path';
-import "dotenv/config"
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
-import { MemoryDB } from '@builderbot/bot' // Usaremos MemoryDB para el flujo, Mongo para la sesión
+import { MemoryDB } from '@builderbot/bot' 
 import { BaileysProvider } from '@builderbot/provider-baileys'
 import { toAsk, httpInject } from "@builderbot-plugins/openai-assistants"
 import { typing } from "./utils/presence"
-import { MongoAdapter } from '@builderbot/database-mongo'; // Importamos Mongo
+import { MongoAdapter } from '@builderbot/database-mongo'; 
 
 /** Puerto en el que se ejecutará el servidor */
 const PORT = process.env.PORT ?? 3008
 /** ID del asistente de OpenAI */
 const ASSISTANT_ID = process.env.ASSISTANT_ID ?? ''
 const userQueues = new Map();
-const userLocks = new Map(); // New lock mechanism
+const userLocks = new Map(); 
 
-// Usamos process.cwd() para obtener la ruta base del contenedor (/app)
 const QR_PATH = path.join(process.cwd(), 'bot.qr.png'); 
 
 /**
@@ -27,7 +25,6 @@ const processUserMessage = async (ctx, { flowDynamic, state, provider }) => {
     await typing(ctx, provider);
     const response = await toAsk(ASSISTANT_ID, ctx.body, state);
 
-    // Split the response into chunks and send them sequentially
     const chunks = response.split(/\n\n+/);
     for (const chunk of chunks) {
         const cleanedChunk = chunk.trim().replace(/【.*?】[ ] /g, "");
@@ -42,23 +39,23 @@ const handleQueue = async (userId) => {
     const queue = userQueues.get(userId);
     
     if (userLocks.get(userId)) {
-        return; // If locked, skip processing
+        return; 
   }
 
     while (queue.length > 0) {
-        userLocks.set(userId, true); // Lock the queue
+        userLocks.set(userId, true); 
         const { ctx, flowDynamic, state, provider } = queue.shift();
         try {
             await processUserMessage(ctx, { flowDynamic, state, provider });
         } catch (error) {
             console.error(`Error processing message for user ${userId}:`, error);
         } finally {
-            userLocks.set(userId, false); // Release the lock
+            userLocks.set(userId, false); 
         }
     }
 
-    userLocks.delete(userId); // Remove the lock once all messages are processed
-    userQueues.delete(userId); // Remove the queue once all messages are processed
+    userLocks.delete(userId); 
+    userQueues.delete(userId); 
 };
 
 /**
@@ -67,7 +64,7 @@ const handleQueue = async (userId) => {
  */
 const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
     .addAction(async (ctx, { flowDynamic, state, provider }) => {
-        const userId = ctx.from; // Use the user's ID to create a unique queue for each user
+        const userId = ctx.from; 
 
         if (!userQueues.has(userId)) {
             userQueues.set(userId, []);
@@ -76,7 +73,6 @@ const welcomeFlow = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
         const queue = userQueues.get(userId);
         queue.push({ ctx, flowDynamic, state, provider });
 
-        // If this is the only message in the queue, process it immediately
         if (!userLocks.get(userId) && queue.length === 1) {
             await handleQueue(userId);
         }
@@ -102,7 +98,7 @@ const main = async () => {
         groupsIgnore: true,
         readStatus: false,
         // @ts-ignore
-        qr: { // Le dice a Baileys dónde guardar el QR
+        qr: { 
             path: QR_PATH,
         }
     });
@@ -111,8 +107,16 @@ const main = async () => {
      * Base de datos
      * Aquí le decimos que use Mongo para guardar la sesión
      */
+
+    // --- PASO 5 DE PERPLEXITY: IMPRIMIR LA VARIABLE ---
+    console.log('---[INICIO DE DEPURACIÓN]---');
+    console.log('Intentando leer la variable MONGO_URL...');
+    console.log('Valor recibido:', process.env.MONGO_URL);
+    console.log('---[FIN DE DEPURACIÓN]---');
+    // --- FIN DEL PASO DE DEPURACIÓN ---
+    
     const adapterDB = new MongoAdapter({ 
-        dbUri: process.env.MONGO_URL, // <-- Lee la variable que pusiste en Railway
+        dbUri: process.env.MONGO_URL, // <-- Aquí se usa la variable
         dbName: 'baileys_session'
     });
 
@@ -123,29 +127,20 @@ const main = async () => {
     const { httpServer } = await createBot({
         flow: adapterFlow,
         provider: adapterProvider,
-        database: adapterDB, // <-- ¡Importante! Usamos la DB de Mongo
+        database: adapterDB, 
     });
-
-    // --- ¡AQUÍ ESTÁ EL ARREGLO IMPORTANTE! ---
     
-    // 1. Dejamos que httpInject configure sus rutas primero
     httpInject(adapterProvider.server);
 
-    // 2. AHORA, sobreescribimos la ruta '/' con nuestra versión SEGURA.
-    //    Esto evita el "crash" porque nuestra ruta SÍ comprueba si el archivo existe.
     adapterProvider.server.get('/', (req, res) => {
         if (fs.existsSync(QR_PATH)) {
-            // Si el QR existe, lo mandamos
             res.setHeader('Content-Type', 'image/png');
             fs.createReadStream(QR_PATH).pipe(res);
         } else {
-            // Si no existe (porque se está generando), mandamos un mensaje
             res.status(404).send('Generando QR... por favor, refresca la página en 10 segundos.');
         }
     });
-    // --- FIN DEL ARREGLO ---
 
-    // 3. Iniciamos el servidor
     httpServer(+PORT);
 };
 
