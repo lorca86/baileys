@@ -5,13 +5,17 @@ import { BufferJSON, initAuthCreds, proto } from '@whiskeysockets/baileys';
 export async function useMongoAuthState(mongoUrl: string, sessionId: string = 'whatsapp-session') {
   const client = new MongoClient(mongoUrl);
   await client.connect();
-  
-  const db = client.db('baileys');
+
+  // !! ---- AQUÍ ESTÁ LA CORRECCIÓN ---- !!
+  // Le quitamos ('baileys') para que use la DB por defecto de Railway
+  const db = client.db(); 
+  // !! ------------------------------------ !!
+
   const collection: Collection = db.collection('auth_states');
 
   // Inicializar documento de sesión
   const sessionDoc = await collection.findOne({ _id: sessionId });
-  
+
   const writeData = async (data: any, key: string) => {
     try {
       const serialized = JSON.stringify(data, BufferJSON.replacer);
