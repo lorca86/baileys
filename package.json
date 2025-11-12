@@ -1,25 +1,26 @@
 {
   "name": "baileys-bot",
   "version": "1.0.0",
-  "description": "Bot de WhatsApp con Baileys y Builderbot, listo para Railway",
+  "description": "Bot de WhatsApp con Baileys y MongoDB para Railway",
   "main": "src/app.ts",
   "type": "module",
   "scripts": {
     "start": "npx tsx ./src/app.ts",
-    "postinstall": "npm install -g tsx"
+    "dev": "npx tsx watch ./src/app.ts"
   },
   "dependencies": {
-    "@builderbot/bot": "1.2.9",
-    "@builderbot/provider-baileys": "1.2.9",
-    "@builderbot/database-mongo": "latest",
+    "@builderbot/bot": "^1.2.9",
+    "@builderbot/provider-baileys": "^1.2.9",
     "@builderbot-plugins/openai-assistants": "^0.0.2",
+    "mongodb": "^6.10.0",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "tsx": "^4.7.1",
-    "typescript": "^5.4.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   },
   "engines": {
     "node": "20.x"
   },
-  "license": "M
+  "license": "MIT"
+}
