@@ -1,15 +1,21 @@
+import 'dotenv/config';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot';
 import { BaileysProvider } from '@builderbot/provider-baileys';
 import { toAsk, httpInject } from '@builderbot-plugins/openai-assistants';
 import { useMongoAuthState } from './utils/mongoAuthState.ts';
-import 'dotenv/config';
-import qrcode from 'qrcode-terminal'; // <--- 1. IMPORT NUEVO
+import qrcode from 'qrcode-terminal';
 
 const PORT = process.env.PORT ?? 3008;
 const MONGO_URL = process.env.MONGO_URL || '';
 const OPENAI_ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID || '';
 
-// Sistema de colas por usuario (Tu código existente)
+// Validación de variables de entorno críticas
+if (!MONGO_URL) {
+  console.error('❌ ERROR: MONGO_URL no está configurado en las variables de entorno');
+  process.exit(1);
+}
+
+// Sistema de colas por usuario
 const userQueues = new Map<string, any[]>();
 const userLocks = new Map<string, boolean>();
 
@@ -69,10 +75,6 @@ const main = async () => {
   try {
     console.log('🚀 Iniciando bot de WhatsApp...');
 
-    if (!MONGO_URL) {
-      throw new Error('❌ MONGO_URL no está configurado en las variables de entorno');
-    }
-
     // Crear auth state personalizado con MongoDB
     const { state, saveCreds } = await useMongoAuthState(MONGO_URL, 'whatsapp-baileys-session');
     console.log('✅ Auth state de MongoDB inicializado');
@@ -83,40 +85,56 @@ const main = async () => {
       groupsIgnore: true,
       readStatus: false,
       auth: state,
-      printQRInTerminal: false, // <--- 2. CAMBIADO A 'false'
+      printQRInTerminal: false,
     });
 
     // Guardar credenciales cuando se actualicen
-    adapterProvider.on('auth_update', saveCreds);
+    adapterProvider.on('creds.update', saveCreds);
 
-    // !! ---- 3. INICIO DEL CÓDIGO NUEVO ---- !!
-    // Escuchar la conexión para imprimir el QR manualmente
+    // Manejo de conexión y QR
     adapterProvider.on('connection.update', (update) => {
-      const { connection, qr } = update;
+      const { connection, lastDisconnect, qr } = update;
 
+      // Mostrar QR en la terminal
       if (qr) {
         console.log('--------------------------------------------------');
         console.log('👇 ESCANEA EL QR CON TU WHATSAPP 👇');
-        // Imprimir el QR en la terminal
-        qrcode.generate(qr, { small: true }); 
+        qrcode.generate(qr, { small: true });
         console.log('--------------------------------------------------');
       }
 
+      // Conexión exitosa
       if (connection === 'open') {
         console.log('✅ ¡Conexión exitosa con WhatsApp!');
       }
 
+      // Conexión cerrada
       if (connection === 'close') {
-        // 'close' significa que se desconectó. Railway lo reiniciará.
-        console.log('❌ Conexión cerrada, se reiniciará.');
+        const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+        const shouldReconnect = statusCode !== 401; // 401 = sesión cerrada manualmente
+        
+        console.log('❌ Conexión cerrada');
+        console.log(`Código de estado: ${statusCode}`);
+        
+        if (!shouldReconnect) {
+          console.log('⚠️ Sesión cerrada manualmente. Elimina las credenciales de MongoDB y reinicia.');
+          process.exit(1);
+        } else {
+          console.log('🔄 Se intentará reconectar automáticamente...');
+        }
       }
     });
-    // !! ---- FIN DEL CÓDIGO NUEVO ---- !!
+
+    // Manejo de errores de autenticación
+    adapterProvider.on('auth_failure', (error) => {
+      console.error('❌ ERROR DE AUTENTICACIÓN:', error);
+      console.error('Detalles completos:', JSON.stringify(error, null, 2));
+    });
 
     const { httpServer } = await createBot({
       flow: adapterFlow,
       provider: adapterProvider,
-      database: undefined, // No usamos database adapter
+      database: undefined,
     });
 
     httpInject(adapterProvider.server);
@@ -127,10 +145,11 @@ const main = async () => {
 
     httpServer(+PORT);
     console.log(`✅ Servidor HTTP escuchando en puerto ${PORT}`);
-    // Este log ya no es preciso, el QR aparecerá arriba
-    // console.log('📱 Escanea el QR en los logs de Railway para conectar WhatsApp'); 
+    console.log('🛜 HTTP Server ON');
+    
   } catch (error: any) {
     console.error('❌ Error fatal al iniciar el bot:', error.message);
+    console.error('Stack completo:', error.stack);
     process.exit(1);
   }
 };
