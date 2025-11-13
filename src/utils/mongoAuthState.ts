@@ -1,126 +1,108 @@
 import { MongoClient, Collection } from 'mongodb';
-import { AuthenticationCreds, SignalDataTypeMap, AuthenticationState } from '@whiskeysockets/baileys';
-import { BufferJSON, initAuthCreds, proto } from '@whiskeysockets/baileys';
+import { 
+    initAuthCreds, 
+    BufferJSON, 
+    proto, 
+    AuthenticationCreds, 
+    AuthenticationState,
+    SignalDataTypeMap
+} from '@whiskeysockets/baileys';
 
-export async function useMongoAuthState(mongoUrl: string, sessionId: string = 'whatsapp-session') {
-  const client = new MongoClient(mongoUrl);
-  await client.connect();
-  console.log('✅ Conectado a MongoDB para auth state');
-
-  const db = client.db('whatsapp');
-  const collection: Collection = db.collection('auth_states');
-
-  // Crear índice
-  try {
-    await collection.createIndex({ _id: 1 });
-  } catch (error) {
-    console.warn('Advertencia creando índice:', error);
-  }
-
-  // Leer el estado completo de la base de datos
-  const readState = async () => {
-    try {
-      const doc = await collection.findOne({ _id: sessionId });
-      if (!doc?.state) return null;
-      
-      // Deserializar con BufferJSON.reviver
-      return JSON.parse(JSON.stringify(doc.state), BufferJSON.reviver);
-    } catch (error) {
-      console.error('❌ Error leyendo estado de MongoDB:', error);
-      return null;
-    }
-  };
-
-  // Escribir el estado completo
-  const writeState = async (state: any) => {
-    try {
-      // Serializar con BufferJSON.replacer
-      const serialized = JSON.parse(JSON.stringify(state, BufferJSON.replacer));
-      
-      await collection.updateOne(
-        { _id: sessionId },
-        { $set: { state: serialized } },
-        { upsert: true }
-      );
-    } catch (error) {
-      console.error('❌ Error escribiendo estado en MongoDB:', error);
-      throw error;
-    }
-  };
-
-  // Eliminar una key específica
-  const removeKey = async (key: string) => {
-    try {
-      await collection.updateOne(
-        { _id: sessionId },
-        { $unset: { [`state.keys.${key}`]: '' } }
-      );
-    } catch (error) {
-      console.error('❌ Error eliminando key:', error);
-    }
-  };
-
-  // Cargar estado guardado o inicializar nuevo
-  const savedState = (await readState()) || {};
-  const creds: AuthenticationCreds = savedState.creds || initAuthCreds();
-  const keys: any = savedState.keys || {};
-
-  // Función para guardar todo el estado
-  const saveFullState = async () => {
-    await writeState({ creds, keys });
-  };
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type: keyof SignalDataTypeMap, ids: string[]) => {
-          const result: { [id: string]: any } = {};
-          
-          for (const id of ids) {
-            const key = `${type}-${id}`;
-            let data = keys?.[key];
-            
-            if (data) {
-              // Manejar app-state-sync-key especialmente
-              if (type === 'app-state-sync-key') {
-                try {
-                  data = proto.Message.AppStateSyncKeyData.fromObject(data);
-                } catch (error) {
-                  console.error(`Error convirtiendo app-state-sync-key ${id}:`, error);
-                }
-              }
-              
-              result[id] = data;
-            }
-          }
-          
-          return result;
-        },
-        
-        set: async (newData: any) => {
-          for (const category of Object.keys(newData)) {
-            for (const id of Object.keys(newData[category])) {
-              const value = newData[category][id];
-              const key = `${category}-${id}`;
-              
-              if (value) {
-                keys[key] = value;
-              } else {
-                delete keys[key];
-                await removeKey(key);
-              }
-            }
-          }
-          
-          // Guardar el estado completo después de cada actualización
-          await saveFullState();
-        },
-      },
-    } as AuthenticationState,
+/**
+ * Almacena la sesión de Baileys en MongoDB.
+ * Esta versión guarda cada clave (creds, keys, etc.) como un documento separado
+ * para un rendimiento óptimo, evitando escribir todo el estado en cada cambio.
+ */
+export const useMongoAuthState = async (mongoUrl: string, collectionName: string = 'auth_states'): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void> }> => {
     
-    saveCreds: async () => {
-      await saveFullState();
-    },
-  };
-}
+    const client = new MongoClient(mongoUrl);
+    await client.connect();
+    
+    // El usuario en su 'mongoAuthState.ts' especificó la DB 'whatsapp'
+    const db = client.db('whatsapp'); 
+    const collection: Collection = db.collection(collectionName);
+
+    // Crear índice para optimizar búsquedas
+    try {
+        await collection.createIndex({ _id: 1 });
+    } catch (e) {
+        console.warn('Advertencia al crear índice de Mongo:', e);
+    }
+
+    // Función para escribir datos (convierte Buffers a JSON string seguro)
+    const writeData = async (data: any, key: string) => {
+        try {
+            // Usamos BufferJSON.replacer para asegurar que los Buffers se guarden bien
+            const value = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
+            await collection.updateOne(
+                { _id: key as any },
+                { $set: { value } },
+                { upsert: true }
+            );
+        } catch (error) {
+            console.error(`❌ Error escribiendo ${key} en Mongo:`, error);
+        }
+    };
+
+    // Función para leer datos (convierte JSON string de vuelta a Buffers)
+    const readData = async (key: string) => {
+        try {
+            const data = await collection.findOne({ _id: key as any });
+            if (data && data.value) {
+                // 🔥 AQUÍ ESTÁ LA SOLUCIÓN AL ERROR "Received type string" 🔥
+                // Usamos BufferJSON.reviver para restaurar los Buffers
+                return JSON.parse(JSON.stringify(data.value), BufferJSON.reviver);
+            }
+            return null;
+        } catch (error) {
+            console.error(`❌ Error leyendo ${key} de Mongo:`, error);
+            return null;
+        }
+    };
+
+    // Cargar credenciales iniciales
+    const creds: AuthenticationCreds = (await readData('creds')) || initAuthCreds();
+
+    return {
+        state: {
+            creds,
+            keys: {
+                get: async (type: keyof SignalDataTypeMap, ids: string[]) => {
+                    const data: { [key: string]: any } = {};
+                    await Promise.all(
+                        ids.map(async (id) => {
+                            let value = await readData(`${type}-${id}`);
+                            if (type === 'app-state-sync-key' && value) {
+                                try {
+                                    value = proto.Message.AppStateSyncKeyData.fromObject(value);
+                                } catch (err) {
+                                    console.error('Error al parsear AppStateSyncKeyData', err);
+                                    value = null;
+                                }
+                            }
+                            data[id] = value;
+                        })
+                    );
+                    return data;
+                },
+                set: async (data) => {
+                    const tasks: Promise<void>[] = [];
+                    for (const category in data) {
+                        for (const id in data[category as keyof typeof data]) {
+                            const value = data[category as keyof typeof data][id];
+                            const key = `${category}-${id}`;
+                            tasks.push(value ? writeData(value, key) : (async () => {
+                                await collection.deleteOne({ _id: key as any });
+                            })());
+                        }
+                    }
+                    await Promise.all(tasks);
+                },
+            },
+        },
+        saveCreds: async () => {
+            // Guardar solo las 'creds'
+            await writeData(creds, 'creds');
+        },
+    };
+};
