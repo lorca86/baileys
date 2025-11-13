@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot';
 import { BaileysProvider } from '@builderbot/provider-baileys';
 import { toAsk, httpInject } from '@builderbot-plugins/openai-assistants';
-import { useMongoAuthState } from './utils/mongoAuthState.ts';
+import { useMongoAuthState } from './utils/mongoAuthState'; // Importa el archivo corregido
 import qrcode from 'qrcode-terminal';
 
 const PORT = process.env.PORT ?? 3008;
@@ -76,7 +76,8 @@ const main = async () => {
     console.log('🚀 Iniciando bot de WhatsApp...');
 
     // Crear auth state personalizado con MongoDB
-    const { state, saveCreds } = await useMongoAuthState(MONGO_URL, 'whatsapp-baileys-session');
+    // Usamos el nombre 'auth_states' para la colección, como en tu archivo mongo
+    const { state, saveCreds } = await useMongoAuthState(MONGO_URL, 'auth_states');
     console.log('✅ Auth state de MongoDB inicializado');
 
     const adapterFlow = createFlow([welcomeFlow]);
